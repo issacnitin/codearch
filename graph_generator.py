@@ -2,8 +2,10 @@ import os
 import re
 import helper
 from graphviz import Digraph
+from subprocess import Popen, PIPE
+from cStringIO import StringIO
 
-PATH='/Users/nitinissacjoy/Workspace/codearch-test/c++'
+PATH='/Users/nitinissacjoy/Workspace/grpc'
 LANGUAGE="C++"
 SKIP_DIR=['.git']
 
@@ -30,7 +32,14 @@ for dir_name, dir_names, file_names in os.walk(PATH):
     for file_name in file_names:
         path = os.path.join(dir_name, file_name)
         f = open(path, "r+")
-        lines = f.read().split('\n')
+        source_code = f.read()
+        _input = StringIO(source_code)
+        _output = StringIO()
+
+        process = Popen(['sed', '', 'language_spec/C++.sed', path], stdout=PIPE, stderr=PIPE)
+        stripped_code, stderr = process.communicate()
+        lines = stripped_code.split('\n')
+        
         line_count = -1
         for key in lines:
             line_count += 1
@@ -41,21 +50,32 @@ for dir_name, dir_names, file_names in os.walk(PATH):
                     break
                 words.append(word)
             if class_keyword in words:
-                if _key[_key.index(class_keyword)+1] not in class_names:
-                    class_names.append(re.split('(\W)', _key[_key.index(class_keyword)+1])[0])
-                    class_meta[re.split('(\W)', _key[_key.index(class_keyword)+1])[0]] = {
-                        'file_path': path,
-                        'line': line_count
-                    }
+                try:
+                    if _key[_key.index(class_keyword)+1] not in class_names:
+                        class_names.append(re.split('(\W)', _key[_key.index(class_keyword)+1])[0])
+                        class_meta[re.split('(\W)', _key[_key.index(class_keyword)+1])[0]] = {
+                            'file_path': path,
+                            'line': line_count
+                        }
+                except:
+                    print("Some error occured somewhere")
 
 class_link = {}
 st = []
 for key in class_meta:
     f = open(class_meta[key]['file_path'], "r+")
-    lines = f.read().split('\n')
-    line_count = 0
+    source_code = f.read()
+    input = StringIO(source_code)
+    output = StringIO()
+
+    process = Popen(['sed', '', 'language_spec/C++.sed', path], stdout=PIPE, stderr=PIPE)
+    stripped_code, stderr = process.communicate()
+    lines = stripped_code.split('\n')
+
+    line_count = -1
     class_link[key] = []
     for line in lines:
+        line_count += 1
         if line_count >= class_meta[key]['line']:
             words = re.split('(\W)', line)
             for word in words:
@@ -67,9 +87,16 @@ for key in class_meta:
                     if word in class_names:
                         if word not in class_link[key]:
                             class_link[key].append(word)
-        line_count += 1
 
-print(class_link)
+for key in class_link:
+    if key == "":
+        continue
+    dot.node(key)
+    for node in class_link[key]:
+        if node == "":
+            continue
+        dot.edge(key, node)
+dot.render('code-graph', view=True)  
 # dict = {}    
 # for dirname, dirnames, filenames in os.walk(PATH):
 #     # print path to all filenames.
