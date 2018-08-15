@@ -70,7 +70,7 @@ for key in class_meta:
     process = Popen(['sed', '', 'language_spec/C++.sed', path], stdout=PIPE, stderr=PIPE)
     stripped_code, stderr = process.communicate()
     lines = stripped_code.split('\n')
-
+ 
     line_count = -1
     class_link[key] = []
     for line in lines:
