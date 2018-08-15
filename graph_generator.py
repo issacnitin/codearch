@@ -1,11 +1,11 @@
 import os
 import re
-import helper
+import helper, json
 from graphviz import Digraph
 from subprocess import Popen, PIPE
 from cStringIO import StringIO
 
-PATH='/Users/nitinissacjoy/Workspace/grpc'
+PATH='/Users/nitinissacjoy/Workspace/Socket'
 LANGUAGE="C++"
 SKIP_DIR=['.git']
 
@@ -13,9 +13,13 @@ dot = Digraph(comment="Variable Generation from code")
 
 # Step 1: Get all keywords for language
 f = open("./language_spec/" + LANGUAGE + ".ca", "r+")
-keywords = f.read().split()
-class_keyword = keywords[0] # Class keyword for language first entry
+json_config = f.read()
+language_spec = json.loads(json_config)
+keywords = language_spec["KEYWORDS"]
+code_block_start = language_spec["BRACKET"]["block"]["start"]
+code_block_end = language_spec["BRACKET"]["block"]["end"]
 
+class_keywords = language_spec["CLASS"]
 
 # Step 2: Get all classnames from codebase
 # Need to redo weeding out comment blocks
@@ -43,23 +47,18 @@ for dir_name, dir_names, file_names in os.walk(PATH):
         line_count = -1
         for key in lines:
             line_count += 1
-            _key = key.split(' ')
-            words = []
-            for word in _key:
-                if word == '//' or word == '///' or word == '#':
-                    break
-                words.append(word)
-            if class_keyword in words:
-                try:
-                    if _key[_key.index(class_keyword)+1] not in class_names:
-                        class_names.append(re.split('(\W)', _key[_key.index(class_keyword)+1])[0])
-                        class_meta[re.split('(\W)', _key[_key.index(class_keyword)+1])[0]] = {
-                            'file_path': path,
-                            'line': line_count
-                        }
-                except:
-                    print("Some error occured somewhere")
-
+            words = key.split(' ')
+            for class_keyword in class_keywords:
+                if class_keyword in words:
+                    try:
+                        if words[words.index(class_keyword) + 1] not in class_names:
+                            class_names.append(re.split('(\W)', words[words.index(class_keyword)+1])[0])
+                            class_meta[re.split('(\W)', words[words.index(class_keyword)+1])[0]] = {
+                                'file_path': path,
+                                'line': line_count
+                            }
+                    except:
+                        print("Some error occured somewhere")
 class_link = {}
 st = []
 for key in class_meta:
@@ -79,9 +78,9 @@ for key in class_meta:
         if line_count >= class_meta[key]['line']:
             words = re.split('(\W)', line)
             for word in words:
-                if word == '{':
+                if word == code_block_start:
                     st.append(word)
-                if len(st) > 0 and word == '}':
+                if len(st) > 0 and word == code_block_end:
                     st.pop()
                 if len(st) == 1: #highest block in class structure, not inner blocks
                     if word in class_names:
